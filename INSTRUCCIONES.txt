@@ -1,0 +1,35 @@
+MIS ENCARGOS — VERSIÓN CON FECHAS Y AVISOS
+
+PASO 1. SUPABASE
+1. Entra en https://supabase.com/dashboard.
+2. Comprueba disponibilidad del plan Free y crea un proyecto NUEVO llamado Mis Encargos.
+3. No ejecutes este SQL en ninguno de tus proyectos existentes.
+4. En el proyecto nuevo abre SQL Editor > New query.
+5. Copia todo supabase-schema.sql, pégalo y pulsa Run.
+6. Si aparece un error, no repitas a ciegas: envía captura.
+
+El SQL crea la fecha de entrega, bandeja de notificaciones, aviso al otro miembro al crear un encargo y recordatorios para ambos miembros un día antes, el día de entrega y una vez vencido. El cron se ejecuta cada hora.
+
+PASO 2. CONECTAR
+1. En Supabase abre Project Settings > API.
+2. Copia Project URL y la clave pública publishable (o anon).
+3. Sustituye los valores de ejemplo en config.js.
+4. No uses service_role ni una clave secret en el navegador.
+
+PASO 3. PUBLICAR
+Sube todos los archivos de esta carpeta a la raíz del repositorio GitHub Pages: index.html, config.js, manifest.webmanifest, sw.js, icon.svg, icon-192.png, icon-512.png, apple-touch-icon.png, supabase-schema.sql e INSTRUCCIONES.txt.
+
+PASO 4. CUENTAS
+Una persona se registra, crea el espacio y comparte el código. La otra crea su cuenta y se une con el código.
+
+INSTALACIÓN
+Android/Chrome: botón Instalar cuando el navegador lo ofrezca.
+iPhone/Safari: Compartir > Añadir a pantalla de inicio.
+La app debe estar publicada mediante HTTPS.
+
+ESTADO DE NOTIFICACIONES
+Incluye bandeja de notificaciones y avisos del navegador mientras la app está abierta y el permiso está concedido. Los avisos de vencimiento se generan desde Supabase mediante pg_cron si el SQL termina sin errores.
+Las push cuando la app está cerrada todavía NO están activas: falta configurar VAPID, guardar las suscripciones de cada móvil y desplegar el envío seguro. El service worker ya puede mostrar una push recibida, pero este ZIP por sí solo no activa el envío push.
+
+SEGURIDAD
+Nunca compartas service_role. Mantén Mis Encargos en un proyecto Supabase independiente.
