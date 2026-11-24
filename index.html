@@ -115,7 +115,44 @@
  }
  function toggleAudioPause(){if(!mediaRecorder)return;if(mediaRecorder.state==="recording"){mediaRecorder.pause();$("pauseRecord").textContent="Continuar";$("recordStatus").textContent="Grabación pausada"}else if(mediaRecorder.state==="paused"){mediaRecorder.resume();$("pauseRecord").textContent="Pausar";$("recordStatus").textContent="Grabando…"}}
  function stopAudioRecording(){if(recordTimer){clearInterval(recordTimer);recordTimer=null}if(mediaRecorder&&mediaRecorder.state!=="inactive")mediaRecorder.stop()}
- async function saveNote(){let title=$("nTitle").value.trim(),dueDate=$("nDueDate").value;if(!title){toast("Escribe un título");return}if(!dueDate){toast("Indica la fecha de entrega");$("nDueDate").focus();return}let payload={workspace_id:workspace.id,title,description:$("nDesc").value,due_date:dueDate,status:$("nStatus").value,priority:$("nPriority").value,updated_at:new Date().toISOString()};let r=activeNote?await sb.from("notes").update(payload).eq("id",activeNote.id).select().single():await sb.from("notes").insert({...payload,created_by:user.id}).select().single();if(r.error){toast(r.error.message);return}let note=r.data;for(let f of pendingFiles){let path=`${workspace.id}/${note.id}/${crypto.randomUUID()}-${f.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`;let up=await sb.storage.from("encargos").upload(path,f,{upsert:false});if(up.error){toast("No se pudo subir "+f.name+": "+up.error.message);continue}let signed=await sb.storage.from("encargos").createSignedUrl(path,3600);let ins=await sb.from("attachments").insert({note_id:note.id,workspace_id:workspace.id,uploaded_by:user.id,file_name:f.name,storage_path:path,public_url:"",mime_type:f.type||"application/octet-stream",size_bytes:f.size});if(ins.error)toast(ins.error.message)}closeModal();await loadNotes();toast("Encargo guardado")}
+ async function saveNote(){
+  const button=$("saveNote");
+  if(button.disabled)return;
+  const title=$("nTitle").value.trim(),dueDate=$("nDueDate").value;
+  if(!title){toast("Escribe un título");$("nTitle").focus();return}
+  if(!dueDate){toast("Indica la fecha de entrega");$("nDueDate").focus();return}
+  if(!sb){toast("No hay conexión con Supabase. Revisa config.js.");return}
+  if(!user||!workspace){toast("Tu sesión o el espacio compartido no están disponibles. Sal y vuelve a entrar.");return}
+  button.disabled=true;button.textContent="Guardando…";
+  try{
+   const payload={workspace_id:workspace.id,title,description:$("nDesc").value,due_date:dueDate,status:$("nStatus").value,priority:$("nPriority").value,updated_at:new Date().toISOString()};
+   const r=activeNote
+    ?await sb.from("notes").update(payload).eq("id",activeNote.id).select().single()
+    :await sb.from("notes").insert({...payload,created_by:user.id}).select().single();
+   if(r.error)throw new Error("No se pudo guardar el encargo: "+r.error.message);
+   if(!r.data)throw new Error("Supabase no devolvió el encargo guardado.");
+   const note=r.data,uploadErrors=[];
+   for(const f of pendingFiles){
+    const safeName=f.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const path=`${workspace.id}/${note.id}/${crypto.randomUUID()}-${safeName}`;
+    const up=await sb.storage.from("encargos").upload(path,f,{upsert:false});
+    if(up.error){uploadErrors.push(`${f.name}: ${up.error.message}`);continue}
+    const ins=await sb.from("attachments").insert({note_id:note.id,workspace_id:workspace.id,uploaded_by:user.id,file_name:f.name,storage_path:path,public_url:"",mime_type:f.type||"application/octet-stream",size_bytes:f.size});
+    if(ins.error)uploadErrors.push(`${f.name}: ${ins.error.message}`);
+   }
+   closeModal();
+   await loadNotes();
+   if(uploadErrors.length)toast("Encargo guardado, pero hubo problemas con archivos: "+uploadErrors.join(" · "));
+   else toast(activeNote?"Encargo actualizado":"Encargo guardado");
+  }catch(err){
+   console.error("Error al guardar encargo:",err);
+   toast(err?.message||"No se pudo guardar. Revisa la conexión e inténtalo de nuevo.");
+  }finally{
+   const current=$("saveNote");
+   if(current){current.disabled=false;current.textContent="Guardar encargo"}
+  }
+ }
+
  async function openDetail(id){let n=notes.find(x=>x.id===id);if(!n)return;activeNote=n;let {data:comments}=await sb.from("comments").select("*").eq("note_id",id).order("created_at");modal(`<div class="modalhead"><div><div class="eyebrow">Detalle del encargo</div><h2>${escapeHtml(n.title)}</h2></div><button class="ghost" id="close">✕</button></div><div class="detailgrid"><div><p><b>Fecha de entrega:</b> ${n.due_date?new Date(n.due_date+"T12:00:00").toLocaleDateString("es-ES",{day:"numeric",month:"long",year:"numeric"}):"Sin fecha"}</p><p class="muted" style="line-height:1.6">${escapeHtml(n.description||"Sin instrucciones generales.")}</p><div class="gallery">${(n.attachments||[]).filter(a=>(a.mime_type||"").startsWith("image/")).map(a=>`<a href="${escapeHtml(a.signed_url||"")}" target="_blank"><img src="${escapeHtml(a.public_url)}" alt="${escapeHtml(a.file_name)}"></a>`).join("")}</div><div style="margin-top:12px"><b style="font-size:13px">Archivos adjuntos</b>${(n.attachments||[]).map(a=>(a.mime_type||"").startsWith("audio/")?`<div class="attachment" style="display:block"><div>🎙️ ${escapeHtml(a.file_name)}</div><audio controls preload="none" style="width:100%;margin-top:8px" src="${escapeHtml(a.signed_url||"")}"></audio><a href="${escapeHtml(a.signed_url||"")}" download="${escapeHtml(a.file_name)}" style="display:inline-block;margin-top:7px">Descargar audio ↓</a></div>`:`<div class="attachment"><span>📎 ${escapeHtml(a.file_name)}</span><a href="${escapeHtml(a.signed_url||"")}" target="_blank" rel="noopener">Abrir ↗</a></div>`).join("")||'<p class="muted">Sin archivos adjuntos.</p>'}</div></div><div><label>Estado del trabajo</label><select class="field" id="detailStatus">${["Nuevo","En proceso","Esperando respuesta","Terminado"].map(s=>`<option ${n.status===s?"selected":""}>${s}</option>`).join("")}</select><label style="margin-top:14px">Comentarios</label><div id="comments">${(comments||[]).map(c=>`<div class="comment"><small>${escapeHtml(c.author_email||"Usuario")} · ${date(c.created_at)}</small>${escapeHtml(c.body)}</div>`).join("")||'<p class="muted">Todavía no hay comentarios.</p>'}</div><textarea class="field" id="commentText" rows="2" placeholder="Escribe un comentario..."></textarea><button class="secondary" id="addComment" style="margin-top:7px;width:100%">Añadir comentario</button></div></div><div class="actions" style="justify-content:space-between"><button class="danger" id="deleteNote">Eliminar encargo</button><div><button class="ghost" id="editNote">Editar</button><button class="primary" id="saveStatus">Guardar estado</button></div></div>`);
  $("close").onclick=closeModal;$("editNote").onclick=()=>openEditor(n);$("saveStatus").onclick=async()=>{let {error}=await sb.from("notes").update({status:$("detailStatus").value,updated_at:new Date().toISOString()}).eq("id",id);if(error)toast(error.message);else{closeModal();await loadNotes();toast("Estado actualizado")}};
  $("addComment").onclick=async()=>{let body=$("commentText").value.trim();if(!body)return;let {error}=await sb.from("comments").insert({note_id:id,workspace_id:workspace.id,user_id:user.id,body});if(error){toast(error.message);return}openDetail(id)};
