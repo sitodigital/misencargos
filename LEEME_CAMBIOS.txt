@@ -1,0 +1,28 @@
+MIS ENCARGOS - ACTUALIZACIÓN DE ESTADOS
+
+Contenido:
+- index.html: interfaz actualizada con cuatro secciones: En curso, Esperando respuesta, Terminado y Finalizado.
+- config.js: configuración pública existente de Supabase y clave pública VAPID.
+- sw.js: service worker existente para PWA y notificaciones push.
+- manifest.webmanifest e iconos: conservados.
+- actualizar-recordatorios.sql: ajuste de los recordatorios para que solo se detengan al pasar a Finalizado.
+
+COMPORTAMIENTO:
+- Los registros antiguos con estado Nuevo o En proceso se muestran como En curso, sin perder sus datos.
+- Esperando respuesta se mantiene como sección independiente.
+- Terminado queda pendiente de confirmación; no desaparece.
+- Finalizado queda guardado y visible para ambos usuarios.
+- Solo se permite eliminar desde Finalizado, con confirmación.
+- Al eliminar, la aplicación intenta borrar primero todos los archivos del bucket privado "encargos" y después elimina el encargo. Los registros relacionados de adjuntos, comentarios y notificaciones se eliminan mediante las relaciones existentes en la base de datos.
+
+INSTALACIÓN:
+1. Descomprime el ZIP.
+2. Sustituye en el repositorio de GitHub los archivos de la aplicación por los incluidos en esta carpeta. Conserva todos juntos en la raíz del repositorio.
+3. En Supabase > SQL Editor, ejecuta una vez actualizar-recordatorios.sql.
+4. No vuelvas a ejecutar el SQL inicial de creación de tablas.
+5. Tras publicar, abre la aplicación y actualiza completamente. Si el móvil conserva la versión anterior, cierra la PWA y vuelve a abrirla; el service worker actualiza su caché.
+
+IMPORTANTE:
+- No cambies ni compartas las claves privadas o secretos de Supabase/VAPID.
+- El archivo config.js incluye únicamente la clave pública de Supabase y la clave pública VAPID, necesarias en el navegador.
+- La eliminación de archivos requiere que siga activa la política de Storage que permite borrar objetos del bucket "encargos" a los miembros del espacio.
