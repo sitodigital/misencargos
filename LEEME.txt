@@ -1,0 +1,8 @@
+ACTUALIZACIÓN DE MIS ENCARGOS
+
+1. Haz una copia de seguridad del index.html actual de GitHub.
+2. Sustituye únicamente el archivo index.html del repositorio por este index.html.
+3. No sustituyas config.js, sw.js ni cambies claves, webhooks o secretos de Supabase.
+4. Espera a que GitHub Pages publique los cambios y recarga la aplicación.
+
+Incluye: pestaña Inicio con todos los encargos y cinco contadores: Activos, En proceso, Esperando, Terminados y Finalizados. Se mantienen las cuatro categorías de estado y la eliminación definitiva de encargos finalizados con sus adjuntos.
