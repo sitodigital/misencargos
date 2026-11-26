@@ -168,8 +168,16 @@
  $("notificationsBtn").onclick=async()=>{await enablePushNotifications();showNotifications()};
  window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installPrompt=e;$("installBtn").style.display="inline-block"});
  $("installBtn").onclick=async()=>{if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$("installBtn").style.display="none"}else toast("En iPhone: Compartir → Añadir a pantalla de inicio.")};
-  if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
- if(!configured){$("authView").classList.remove("hidden");$("authMsg").textContent="La interfaz está preparada. Falta conectar Supabase siguiendo INSTRUCCIONES.txt."}
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
+    try {
+      const registration = await navigator.serviceWorker.register("./sw.js");
+      await registration.update();
+    } catch (error) {
+      console.warn("No se pudo comprobar la actualización:", error);
+    }
+  });
+} if(!configured){$("authView").classList.remove("hidden");$("authMsg").textContent="La interfaz está preparada. Falta conectar Supabase siguiendo INSTRUCCIONES.txt."}
  else sb.auth.getSession().then(({data})=>{if(data.session)start(data.session.user)}).then(()=>sb.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_IN"&&session&&!user)start(session.user)}));
 })();
 </script></body></html>
